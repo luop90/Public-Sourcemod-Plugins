@@ -1,6 +1,6 @@
 #pragma semicolon 1
 
-//HTML Checker from Logs.TF uploader by F2, Message changing from FunCommandsX. (The latter is not included yet - need to get it functioning.)
+//HTML Checker partially from Logs.TF uploader by F2, Message changing from FunCommandsX. (The latter is not included yet - need to get it functioning.)
 //Minor edits made to both for functionality reasons.
 
 #include <sourcemod>
