@@ -58,11 +58,8 @@ public Action:OnClientSayCommand(client, const String:command[], const String:sA
 	if(messageSize < 6) //Small optimization.
 		return Plugin_Continue;
 	
-	decl String: message1[200];
-	strcopy(message1, sizeof(message1), sArgs);
-	
 	decl String: message[200];
-	String_ToLower(message1, message, sizeof(message)); //Convert to lowercase. Probably not needed.
+	strcopy(message, sizeof(message), sArgs);
 	
 	if(strcmp(message, "get good, get lmaobox!", false) == 0 || strcmp(message, "www.lmaobox.net - best free tf2 hack!", false) == 0) { 
 			Log_Action(client);
