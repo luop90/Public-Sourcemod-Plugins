@@ -1,7 +1,7 @@
 #pragma semicolon 1
 #include <sourcemod>
 
-#define PLUGIN_VERSION 	"2.1"
+#define PLUGIN_VERSION 	"2.2"
 
 /* 		Release Notes
 	-----1.0----- (2014/09/04)
@@ -10,6 +10,8 @@
 	Lotus exclusive, massive source clean-up, added WarnAdmin(), added cvarReason/cvarWarn, implemented non-case sensitive checking, removed unneeded include.
 	-----2.1----- (2015/03/13) 
 	Public release, added SteamIdType CVar, added cvarVersion change detection, fixed tag mismatch warnings, removed unneeded definition.
+	-----2.2----- (2015/4/4)
+	Added a bool to prevent duplicate bans, fixed small bug regarding ban reasons. 
 */
 
 public Plugin:myinfo = {
@@ -28,6 +30,7 @@ new Handle: cvarWarn;
 new Handle: cvarLog;
 new Handle: cvarSteamIdType;
 
+new bool:detected[MAXPLAYERS];
 public OnPluginStart() {
 	//Global cvars
 	cvarEnable = 		CreateConVar("sm_blockbox_enable", "1", "1(on) or 0(off). Default is 1(on).");
@@ -41,11 +44,16 @@ public OnPluginStart() {
 	cvarLog = 			CreateConVar("sm_blockbox_log",  "1", "Log ban in server logs. Default 1 (on).");
 	cvarSteamIdType = 	CreateConVar("sm_blockbox_steamid_type", "0", "Sets the SteamID type. 0 = SteamID, 1 = SteamID3. Default is 0 (SteamID)");
 }
-
+public OnClientConnected(client) {
+	detected[client] = false;
+}
 public Action:OnClientSayCommand(client, const String:command[], const String:sArgs[]) {
 	if(!GetConVarBool(cvarEnable))
 		return Plugin_Continue;
 	
+	if(detected[client])
+		return Plugin_Continue;
+		
 	new messageSize = strlen(sArgs);
 	if(messageSize < 6) //Small optimization.
 		return Plugin_Continue;
@@ -56,17 +64,12 @@ public Action:OnClientSayCommand(client, const String:command[], const String:sA
 	decl String: message[200];
 	String_ToLower(message1, message, sizeof(message)); //Convert to lowercase. Probably not needed.
 	
-	if(strcmp(message, "get good, get lmaobox!", false) == 0) { 
+	if(strcmp(message, "get good, get lmaobox!", false) == 0 || strcmp(message, "www.lmaobox.net - best free tf2 hack!", false) == 0) { 
 			Log_Action(client);
 			BanPlayer(client);
 			return Plugin_Continue; //For logging purposes
 	}
-	if(strcmp(message, "www.lmaobox.net - best free tf2 hack!", false) == 0) { 
-			Log_Action(client);
-			BanPlayer(client);
-			return Plugin_Continue;
-	}
-	if(strcmp(message, "lmaobox", false) == 0) {
+	if(StrContains(message, "lmaobox", false) == -1) {
 			decl String: nickname[60];
 			GetClientName(client, nickname, sizeof(nickname));
 			WarnAdmin(nickname, "triggered LMAOBox detection.");
@@ -105,18 +108,22 @@ Log_Action(client) {
 BanPlayer(client) {
 	if(!GetConVarBool(cvarBan))
 		return;
+	if(detected[client]) //To prevent duplicate bans.
+		return;
 	
+	detected[client] = true;
 	decl String: nickname[60];
 	decl String: c_authid[19];
+	decl String: b_reason[256];
 
 	GetClientName(client, nickname, sizeof(nickname));
 	if(!GetConVarBool(cvarSteamIdType))
 		GetClientAuthId(client, AuthIdType:AuthId_Steam2, c_authid, sizeof(c_authid));
 	else
 		GetClientAuthId(client, AuthIdType:AuthId_Steam3, c_authid, sizeof(c_authid));
-
+	GetConVarString(cvarReason, b_reason, sizeof(b_reason));
 	WarnAdmin(nickname, "triggered auto-ban for LMAOBox spam.");
-	ServerCommand("sm_ban \"%s\" 0 \"%s\"", c_authid, cvarReason);
+	ServerCommand("sm_ban \"%s\" 0 \"%s\"", c_authid, b_reason);
 	
 	return;
 }
