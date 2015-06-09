@@ -28,6 +28,11 @@ public Action:OnClientSayCommand(client, const String:command[], const String:sA
 	decl String: message1[256];
 	strcopy(message1, sizeof(message1), sArgs);
 
+	if(strcmp(message1, "!logs", false) == 0) {
+		FakeClientCommand(client, "say !log"); //Fake the !log command, to fix it not showing logs when people say !logs.
+		return Plugin_Handled;
+	}
+	
 	if(strcmp(message1, ".ss", false) == 0 || strcmp(message1, "!log", false) == 0 || strcmp(message1, "!logs", false) == 0 || strcmp(message1, "!ss", false) == 0) {
 		QueryClientConVar(client, "cl_disablehtmlmotd", QueryConVar_DisableHtmlMotd);
 		return Plugin_Continue;
