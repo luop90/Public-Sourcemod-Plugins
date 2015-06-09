@@ -13,12 +13,15 @@
 	-Added ability to view logs that TF2C uploads, if the logs.tf plugin/tftrue aren't on the server.
 	-Added version checker.	
 	-Fixed those pesky Tag Mismatch warnings.
+----2.1---- (2015/06/09)
+	-Added auto-hooking when a lobby starts.
+	-Code cleanup
 */
 
 #include <sourcemod>
 #include <morecolors>
 
-#define PLUGIN_VERSION			"2.0"
+#define PLUGIN_VERSION			"2.1"
 
 public Plugin:myinfo = {
 	name = "TF2Center Extender",
@@ -67,11 +70,13 @@ public OnPluginStart() {
 		disableLogs = true;
 	}
 }
+
 //Events
 public OnMapStart() {
 	g_sLogLink = ""; //Used to stop previous logs from being shown.
 }
 public OnMapEnd() {
+	//Disabled everything.
 	inLobby = false;
 	showLog = false;
 }
@@ -85,8 +90,18 @@ public OnVersionChanged(Handle:event, const String:oldVal[], const String:newVal
 public Action: SayCallBack(client, const String:command[], argc) {
 	decl String: strChat[256];
 	GetCmdArgString(strChat, sizeof(strChat));
-	
-	if(inLobby) {
+	//Auto detect when a lobby starts.
+	if(!inLobby && StrContains(strChat, "TF2Center Lobby #", false) == 0) {
+		startLobby();
+		return Plugin_Continue;
+	}
+
+	else if(inLobby) {
+		//Auto detect when a lobby ends.
+		if(StrContains(strChat, "Lobby Closed: ", false) == 0) {
+			endLobby();
+		}
+		//Detect normal TF2C outputs.
 		if(StrContains(strChat, "TF2Center", false) == 0) {
 			//TF2Center: -skip 11. If its [TF2Center] -skip 13.
 			decl String:msg[256];
@@ -94,7 +109,8 @@ public Action: SayCallBack(client, const String:command[], argc) {
 			CPrintToChatAll("{lightgreen}[TF2Center] {blue}%s", msg);
 			return Plugin_Handled;
 		}
-		if(StrContains(strChat, "[VServers]", false) == 0) {
+		//VServers hook for Void.
+		else if(StrContains(strChat, "[VServers]", false) == 0) {
 			//[VServers] -skip 10.
 			decl String:msg[256];
 			strcopy(msg, sizeof(msg), strChat[10]);
@@ -102,9 +118,11 @@ public Action: SayCallBack(client, const String:command[], argc) {
 			return Plugin_Handled;
 		}
 	}
+	//Check if logs should exist.
 	if(!disableLogs) {
-		if(strcmp(strChat, "!log", false) == 0 || strcmp(strChat, "!logs", false) == 0) {
+		if(strcmp(strChat, "!log", false) || strcmp(strChat, "!logs", false)) {
 			if(showLog) {
+				//Check the cvar. (Inside of this is when the logs are shown.)
 				QueryClientConVar(client, "cl_disablehtmlmotd", QueryConVar_DisableHtmlMotd);
 				return Plugin_Continue;
 			}
@@ -163,6 +181,7 @@ public Action:TF2C_End(client, args) {
 	endLobby();
 	return Plugin_Handled;
 }
+
 //Custom functions.
 startLobby() {
 	if(inLobby) {
