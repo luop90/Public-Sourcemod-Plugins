@@ -19,15 +19,17 @@ public Plugin:myinfo = {
 }
 
 new String:names_of_classes[10][256] = {"Unknown", "Scout", "Sniper", "Soldier", "Demoman", "Medic", "Heavy", "Pyro", "Spy", "Engineer"};
-new Handle: cvarVersion;
+new Handle: cvarVersion,
+	Handle: cvarEnable;
 
 new total_classes[TFClassType][2]; // First is the number of classes, second is the team.
 new bool:teamReadyState[2] = { false, false }; //Set both teams to false.
 
 public OnPluginStart() {
-	cvarVersion = CreateConVar("sm_4s_integrity", PLUGIN_VERSION, "Version of the plugin");
+	cvarVersion = CreateConVar("sm_4s_integrity_version", PLUGIN_VERSION, "Version of the plugin");
 	HookConVarChange(cvarVersion, OnVersionChanged);
 
+	cvarEnable = CreateConVar("sm_4s_integrity_enable", "1", "Enable the plugin?");
 	HookEvent("teamplay_game_over", Event_GameOver);
 	HookEvent("tf_game_over", Event_GameOver);
 	AddCommandListener(Command_TournamentRestart, "mp_tournament_restart");
@@ -44,12 +46,17 @@ public OnVersionChanged(Handle:cvar, const String:oldVal[], const String:newVal[
 }
 
 public Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast) {
+	if(!GetConVarBool(cvarEnable))
+		return;
 	new team = GetClientTeam(GetClientOfUserId(GetEventInt(event, "userid"))) - TEAM_OFFSET; //Get the team, convert it to the type we are using.
 
 	CountClass(team);
 }
 
 CountClass(team) {
+	if(!GetConVarBool(cvarEnable))
+		return;
+
 	for(new i = 0; i <= 9; i++) {
 		total_classes[i][team] = 0; //Reset all class values together when you do a recount.
 	}
@@ -74,6 +81,9 @@ CountClass(team) {
 //// Enable / Disable plugin Events.
 
 public Event_TournamentStateUpdate(Handle:event, const String:name[], bool:dontBroadcast) {
+	if(!GetConVarBool(cvarEnable))
+		return;
+
 	new team = GetClientTeam(GetEventInt(event, "userid")) - TEAM_OFFSET; //Get z team.
 	new bool:nameChange = GetEventBool(event, "namechange"); 
 	new bool:readyState = GetEventBool(event, "readystate"); //The reason you need both is that a namechange also does a readystate change. Rarely do you actually want that.
@@ -89,6 +99,9 @@ public Event_TournamentStateUpdate(Handle:event, const String:name[], bool:dontB
 }
 
 public Event_GameOver(Handle:event, const String:name[], bool:dontBroadcast) {
+	if(!GetConVarBool(cvarEnable))
+		return;
+
 	teamReadyState[RED] = false; //Reset both values on game over.
 	teamReadyState[BLU] = false;
 
@@ -97,6 +110,9 @@ public Event_GameOver(Handle:event, const String:name[], bool:dontBroadcast) {
 }
 
 public Action:Command_TournamentRestart(client, const String:Commmand[], sArgs) {
+	if(!GetConVarBool(cvarEnable))
+		return Plugin_Continue;
+
 	teamReadyState[RED] = false; //Reset both values.
 	teamReadyState[BLU] = false;
 
@@ -110,6 +126,10 @@ public Action:Command_TournamentRestart(client, const String:Commmand[], sArgs) 
 
 EnablePlugin() {
 	//Start hooking spawns.
+	if(GetClientCount(true) != 9 || GetClientCount(true) != 8) { //9 players = 4v4 + STV, 8 players = 4v4 and no STV.
+		SetConVarString(cvarEnable, "0");
+		return;
+	}
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 
 	CPrintToChatAll("{lightgreen}[TF2C] {blue}4v4 Plugin enabled.");
